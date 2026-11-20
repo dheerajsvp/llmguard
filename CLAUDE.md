@@ -14,10 +14,11 @@ Python 3.11+, pydantic, FastAPI, SQLAlchemy 2 + Alembic, PostgreSQL, pytest, ruf
 - `dashboard/` React app (created in M6)
 
 ## Commands
-- Install: `pip install -e ".[dev]"`
+- Install: `pip install -e ".[dev,db]"`
 - Test: `pytest`
 - Lint/format: `ruff check . && ruff format .`
 - Types: `mypy src`
+- DB tests (skipped if unset): set `LLMGUARD_TEST_DATABASE_URL`, e.g. start `docker run -d --name llmguard-test-db -e POSTGRES_PASSWORD=testpw -e POSTGRES_DB=llmguard_test -p 127.0.0.1:55432:5432 postgres:16` and use `postgresql+psycopg://postgres:testpw@127.0.0.1:55432/llmguard_test`
 
 ## Conventions
 - Test-first: write a failing test, then the code.

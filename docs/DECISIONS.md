@@ -44,3 +44,18 @@ With `block_on_violation=True`, an injection hit returns a refusal without calli
 
 ## D15. Honest evals over impressive ones
 Eval sets include hard negatives and known-bypass attacks, and the README of `eval/` states the test split is not blind. Numbers are reported with n.
+
+## D16. Optional `db` extra: SQLAlchemy, Alembic, psycopg
+Added in M4 as `pip install -e ".[db]"`. SQLAlchemy 2 is the standard Python ORM/query layer (parameterised queries, no hand-built SQL strings); Alembic gives versioned schema migrations (the equivalent of Django migrations); psycopg 3 is the Postgres driver. They are optional so the pure core (redaction, detection, Guard, chain maths) stays installable without a database.
+
+## D17. What is audited
+Request id, blocked flag, rule ids, redaction counts per type, and a SHA-256 fingerprint of the *redacted* prompt. No prompt, reply or PII value is stored. The raw prompt is never hashed, because a hash of a low-entropy value such as a phone number can be reversed by guessing.
+
+## D18. Fail closed
+If writing the audit event fails, `Guard.run` raises and the caller gets no reply. An unauditable call is worse than a failed one for a governance tool. Trade-off: a database outage takes the guard down.
+
+## D19. Advisory lock for appends
+Appends take `pg_advisory_xact_lock`, so concurrent requests extend the chain one at a time. Verified with a test that fails (duplicate seq) when the lock is removed. A simpler alternative, a serializable transaction plus retries, is harder to explain.
+
+## D20. Sequence numbers assigned by the app, timestamps too
+`seq` and `created_at` are set in Python inside the lock, not by DB defaults, so the hash input is known before insert and the chain can be recomputed exactly from stored values.

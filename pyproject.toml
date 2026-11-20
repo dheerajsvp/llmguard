@@ -13,6 +13,11 @@ dependencies = [
 ]
 
 [project.optional-dependencies]
+db = [
+    "sqlalchemy>=2.0",
+    "alembic>=1.13",
+    "psycopg[binary]>=3.1",
+]
 gemini = [
     "google-genai>=1.0",
 ]
@@ -40,5 +45,5 @@ strict = true
 files = ["src"]
 
 [[tool.mypy.overrides]]
-module = ["google.*"]
+module = ["google.*", "alembic.*"]
 ignore_missing_imports = true
