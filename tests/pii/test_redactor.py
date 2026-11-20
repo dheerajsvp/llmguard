@@ -99,3 +99,14 @@ def test_no_pii_returns_text_unchanged() -> None:
 def test_entity_repr_does_not_leak_raw_value() -> None:
     r = redact("ABCPE1234F")
     assert "ABCPE1234F" not in repr(r.entities[0])
+
+
+def test_spaced_card_is_not_split_into_aadhaar_prefix() -> None:
+    # Build a card whose first 12 digits happen to be a *valid* Aadhaar, so the
+    # Aadhaar rule would wrongly claim them if it ignored the surrounding digits.
+    from llmguard.pii.validators import luhn_valid
+
+    first12 = "42345678901" + verhoeff_check_digit("42345678901")
+    card = next(first12 + "345" + str(d) for d in range(10) if luhn_valid(first12 + "345" + str(d)))
+    spaced = " ".join(card[i : i + 4] for i in range(0, 16, 4))
+    assert redact(f"card {spaced}").text == "card <CARD_1>"

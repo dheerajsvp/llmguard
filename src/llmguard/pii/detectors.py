@@ -33,7 +33,9 @@ def _digits(s: str) -> str:
 _RULES: tuple[_Rule, ...] = (
     _Rule(
         "AADHAAR",
-        re.compile(r"(?<!\d)[2-9]\d{3}([ -]?)\d{4}\1\d{4}(?!\d)"),
+        # The extra lookarounds stop us matching 12 digits of a longer grouped number
+        # (e.g. the first three groups of a spaced 16-digit card).
+        re.compile(r"(?<!\d)(?<!\d[ -])[2-9]\d{3}([ -]?)\d{4}\1\d{4}(?!\d)(?![ -]\d{4}\b)"),
         lambda s: verhoeff_valid(_digits(s)),
     ),
     _Rule(
