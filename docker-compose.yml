@@ -1,0 +1,39 @@
+# Run: copy .env.example to .env, fill in the blanks, then `docker compose up --build`.
+services:
+  db:
+    image: postgres:16
+    environment:
+      POSTGRES_DB: llmguard
+      POSTGRES_USER: llmguard
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD in .env}
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U llmguard -d llmguard"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+    # No "ports:" on purpose: Postgres is reachable only from the api container.
+
+  api:
+    build: .
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      LLMGUARD_DATABASE_URL: postgresql+psycopg://llmguard:${POSTGRES_PASSWORD}@db:5432/llmguard
+      LLMGUARD_API_KEYS: ${LLMGUARD_API_KEYS:?set LLMGUARD_API_KEYS in .env}
+      LLMGUARD_ADMIN_KEYS: ${LLMGUARD_ADMIN_KEYS:?set LLMGUARD_ADMIN_KEYS in .env}
+      LLMGUARD_PROVIDER: ${LLMGUARD_PROVIDER:-fake}
+      LLMGUARD_RESTORE_TYPES: ${LLMGUARD_RESTORE_TYPES:-}
+      GEMINI_API_KEY: ${GEMINI_API_KEY:-}
+    ports:
+      - "127.0.0.1:${API_PORT:-8000}:8000"
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request as u; u.urlopen('http://localhost:8000/healthz')"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+volumes:
+  pgdata:
