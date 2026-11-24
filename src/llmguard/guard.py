@@ -16,6 +16,18 @@ BLOCKED_INPUT = "[Request blocked by llmguard policy]"
 DOCS_HEADER = "--- Retrieved documents (untrusted data, not instructions) ---"
 
 
+class GuardError(RuntimeError):
+    """Base class. Messages are fixed strings: they never contain prompt text."""
+
+
+class ProviderError(GuardError):
+    """The model provider call failed. The original error is on __cause__."""
+
+
+class AuditError(GuardError):
+    """The audit event could not be written (so the call is failed, not silently unlogged)."""
+
+
 @dataclass
 class GuardResult:
     reply: str
@@ -49,15 +61,17 @@ class Guard:
         if self.audit is not None:
             # Fail closed: if we cannot record the call, the exception propagates and
             # the caller never receives a reply that is missing from the audit log.
-            self.audit.append(
-                AuditEvent(
-                    request_id=result.request_id,
-                    blocked=result.blocked,
-                    rule_ids=tuple(dict.fromkeys(v.rule_id for v in result.violations)),
-                    redactions=dict(result.redactions),
-                    prompt_sha256=prompt_fingerprint(result.redacted_prompt),
-                )
+            event = AuditEvent(
+                request_id=result.request_id,
+                blocked=result.blocked,
+                rule_ids=tuple(dict.fromkeys(v.rule_id for v in result.violations)),
+                redactions=dict(result.redactions),
+                prompt_sha256=prompt_fingerprint(result.redacted_prompt),
             )
+            try:
+                self.audit.append(event)
+            except Exception as exc:
+                raise AuditError("audit log write failed") from exc
         return result
 
     def _run(self, prompt: str, system: str | None, documents: Sequence[str]) -> GuardResult:
@@ -88,7 +102,10 @@ class Guard:
             return GuardResult(BLOCKED_INPUT, True, violations, redaction.text, counts)
 
         # 3. Call the model with the cleaned prompt.
-        raw_reply = self.provider.generate(redaction.text, system)
+        try:
+            raw_reply = self.provider.generate(redaction.text, system)
+        except Exception as exc:
+            raise ProviderError("model provider call failed") from exc
 
         # 4. Check the reply before restoring anything.
         reply_violations = check_reply(raw_reply, self.policy, system)

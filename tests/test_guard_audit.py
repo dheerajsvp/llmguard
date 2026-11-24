@@ -67,3 +67,23 @@ def test_audit_failure_fails_closed() -> None:
 
 def test_guard_without_audit_still_works() -> None:
     assert Guard(FakeProvider(reply="ok")).run("hello").reply == "ok"
+
+
+def test_provider_error_is_wrapped_without_leaking_its_message() -> None:
+    from llmguard.guard import ProviderError
+
+    class Boom:
+        def generate(self, prompt: str, system: str | None = None) -> str:
+            raise ValueError(f"secret detail: {prompt}")
+
+    with pytest.raises(ProviderError) as exc:
+        Guard(Boom()).run("hello ABCPE1234F")
+    assert "ABCPE1234F" not in str(exc.value)
+    assert isinstance(exc.value.__cause__, ValueError)  # kept for debugging, never logged raw
+
+
+def test_audit_error_is_a_distinct_type() -> None:
+    from llmguard.guard import AuditError
+
+    with pytest.raises(AuditError):
+        Guard(FakeProvider(), audit=BrokenSink()).run("hello")

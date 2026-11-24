@@ -59,3 +59,21 @@ Appends take `pg_advisory_xact_lock`, so concurrent requests extend the chain on
 
 ## D20. Sequence numbers assigned by the app, timestamps too
 `seq` and `created_at` are set in Python inside the lock, not by DB defaults, so the hash input is known before insert and the chain can be recomputed exactly from stored values.
+
+## D21. FastAPI + uvicorn (optional `api` extra), httpx in dev
+FastAPI is the web framework (typed request validation, automatic OpenAPI docs); uvicorn is the server that runs it. Both are in the optional `api` extra so the core library does not depend on them. httpx is only needed by FastAPI's test client, so it is a dev dependency.
+
+## D22. Two key roles: chat and admin
+Keys that can call `/v1/chat` cannot read the audit log, and the reverse (403, not 401, so the caller can tell "wrong role" from "unknown key"). The server refuses to start if either set is empty, has a key shorter than 16 characters, or the sets overlap. Keys are compared with `hmac.compare_digest` (constant time). Keys live in environment variables, never in code or the image.
+
+## D23. A blocked request is HTTP 200
+The request was processed correctly and the response says `blocked: true` with the rule ids. Real failures are mapped to fixed, safe messages: provider failure is 502, audit failure is 503 (fail closed, reply withheld). Only the error *type* is logged, never the upstream message, because provider errors can echo the prompt.
+
+## D24. Plain `def` endpoints
+`Guard.run` is synchronous (blocking model call). FastAPI runs plain functions in a thread pool, so one slow call does not block others. Making them `async def` would block the event loop.
+
+## D25. Size limits on input
+Prompt 20,000 chars, system 10,000, up to 20 documents of 50,000 chars each (422 otherwise). Prevents a caller from sending arbitrarily large bodies. Not a substitute for rate limiting (not implemented, see README limitations).
+
+## D26. Compose: db not published, fake provider by default, secrets required
+`docker-compose.yml` publishes only the API (bound to 127.0.0.1). Postgres is reachable only inside the compose network. Secrets have no defaults: compose fails with a clear message if they are unset, so nobody runs with a known key. `LLMGUARD_PROVIDER` defaults to `fake` so the demo works without a Gemini key. The container runs as a non-root user and applies Alembic migrations on start.

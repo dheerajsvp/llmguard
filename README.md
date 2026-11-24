@@ -9,15 +9,37 @@ For every call it:
 4. Writes a hash-chained, tamper-evident audit log to PostgreSQL, never storing raw PII
 5. Shows a React dashboard: violations over time, top rules, per-call drill-down
 
-**Status:** planning/scaffold stage (see [docs/ROADMAP.md](docs/ROADMAP.md)).
+**Status:** M0 to M5 done (core library, audit log, HTTP API). Dashboard is next. See [docs/ROADMAP.md](docs/ROADMAP.md).
 
 ## Quick start
 ```bash
 python -m venv .venv
 .venv\Scripts\activate          # Windows; use source .venv/bin/activate elsewhere
-pip install -e ".[dev]"
+pip install -e ".[dev,db,api]"
 pytest
 ```
+
+## Run the API (Docker Compose)
+```bash
+cp .env.example .env        # then fill in every blank (see comments in the file)
+docker compose up --build   # API on http://127.0.0.1:8000 (Postgres is not exposed)
+
+curl -X POST http://127.0.0.1:8000/v1/chat \
+  -H "X-API-Key: $CHAT_KEY" -H "content-type: application/json" \
+  -d '{"prompt": "My PAN is ABCPE1234F"}'
+```
+`LLMGUARD_PROVIDER=fake` (default) gives canned replies; set `gemini` and `GEMINI_API_KEY` for the real model.
+
+| Endpoint | Key | Purpose |
+|---|---|---|
+| `POST /v1/chat` | chat | guarded model call |
+| `GET /api/events`, `/api/events/{request_id}` | admin | audit log, filters, drill-down |
+| `GET /api/stats?days=7` | admin | violations per day, top rules |
+| `GET /api/chain` | admin | verify the hash chain, return head hash |
+| `GET /healthz` | none | liveness |
+
+## Tests
+`pytest` runs everything that needs no database. For the Postgres tests, see the DB test command in [CLAUDE.md](CLAUDE.md).
 
 ## Docs
 - [Roadmap](docs/ROADMAP.md)
@@ -29,4 +51,5 @@ pytest
 - Restoring placeholders in replies can reintroduce PII, so it is policy-gated.
 - The hash chain detects edits only if the latest hash is anchored outside the database; someone with full DB control could rewrite the whole chain.
 - Reply policy checks are heuristic. The proxy adds latency, and Gemini free-tier quotas apply.
+- No rate limiting or per-key quotas yet; API keys are static and there is no key rotation.
 - Evaluation sets are small and partly synthetic, so reported numbers will not generalize. Results will be published here with set sizes.
