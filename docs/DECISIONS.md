@@ -77,3 +77,24 @@ Prompt 20,000 chars, system 10,000, up to 20 documents of 50,000 chars each (422
 
 ## D26. Compose: db not published, fake provider by default, secrets required
 `docker-compose.yml` publishes only the API (bound to 127.0.0.1). Postgres is reachable only inside the compose network. Secrets have no defaults: compose fails with a clear message if they are unset, so nobody runs with a known key. `LLMGUARD_PROVIDER` defaults to `fake` so the demo works without a Gemini key. The container runs as a non-root user and applies Alembic migrations on start.
+
+## D27. Frontend stack: React + TypeScript + Vite, Recharts, Vitest
+React for the UI, TypeScript (strict) so API response shapes are checked at compile time, Vite as dev server and bundler, Recharts for charts (named in CLAUDE.md; declarative, accessible-by-default keyboard layer). Tests use Vitest with jsdom and Testing Library. All live in `dashboard/package.json`; nothing is added to the Python side. No ESLint/Prettier yet, to keep the toolchain small; `tsc --noEmit` runs in CI.
+
+## D28. Same origin, so no CORS
+The browser calls `/api/...` on its own origin. Vite's dev server and the nginx container forward `/api/` to the Python API. The API therefore never enables CORS, so no other website's JavaScript can call it from a browser. nginx forwards only `/api/`: `/v1/chat` is not reachable through the dashboard (verified: 405).
+
+## D29. Admin key in sessionStorage, header only
+The user pastes an admin key once. It is validated with a cheap admin-only call, kept in `sessionStorage` (survives reload, cleared when the tab closes; localStorage would keep it on disk), sent only in the `X-API-Key` header (never the URL), and never rendered. Any 401/403 clears it and returns to the key screen. Trade-off: any XSS on the dashboard origin could read it, which is why D30 exists.
+
+## D30. Defence against XSS
+Rule ids, request ids and other API fields are treated as untrusted and rendered as React text (never `dangerouslySetInnerHTML`); tests inject `<img onerror>` and `<b>` payloads and mutation-checked them. nginx sends a strict Content-Security-Policy (`default-src 'self'`; inline *styles* allowed only because the chart library sets style attributes), `X-Frame-Options: DENY`, `nosniff`, and `Referrer-Policy: no-referrer`.
+
+## D31. Chart design follows the data's job
+"Calls per day" is an emphasis chart (blocked in the accent blue, everything else a neutral grey), not a two-colour categorical one, because the story is violations. "Top rules" is ranked horizontal bars in one hue (length carries the value). The accent passes the palette validator in light and dark; the grey fails only the chroma floor by design (it is a de-emphasis neutral, and its separation from the blue is delta-E >= 15.9). Every chart has a "Show as table" twin, so no value depends on hover. Status is never colour alone (icon + text).
+
+## D32. Refetch keeps the frame
+While data reloads, the previous render stays on screen at reduced opacity (`aria-busy` set). No skeleton flashes, no layout jumps. Stale answers are ignored if a newer request was made.
+
+## D33. Dashboard served by nginx (unprivileged), built in a multi-stage image
+The image builds the static site with Node, then copies only the output into `nginx-unprivileged` (non-root, port 8080). Published on 127.0.0.1 only.
