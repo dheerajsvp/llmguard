@@ -98,3 +98,6 @@ While data reloads, the previous render stays on screen at reduced opacity (`ari
 
 ## D33. Dashboard served by nginx (unprivileged), built in a multi-stage image
 The image builds the static site with Node, then copies only the output into `nginx-unprivileged` (non-root, port 8080). Published on 127.0.0.1 only.
+
+## D34. Guarded synthetic demo data
+`python -m llmguard.demo --yes-delete-existing` builds a valid hash chain of invented events (same chain code the guard uses) so the dashboard has something to show. It deletes all audit rows first, so it refuses to run without the explicit flag, reads the database URL only from the environment, and never prints the password. The events never passed through the guard and are not a record of real traffic.
