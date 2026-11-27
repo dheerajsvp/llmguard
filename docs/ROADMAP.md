@@ -9,7 +9,7 @@ Each milestone: test-first, small commits, stop for review at the end.
 - [x] **M4 Audit log**: Postgres models, Alembic, hash chain, `verify_chain`, tamper test, no-raw-PII test
 - [x] **M5 FastAPI proxy**: `/v1/chat`, read API for events/stats, API key auth, Docker Compose (api + postgres)
 - [x] **M6 React dashboard**: violations over time, top rules, per-call drill-down, chain-status badge
-- [ ] **M7 Polish**: README with eval numbers, limitations, diagram, demo GIF, CI green, threat model note
+- [x] **M7 Polish**: README with eval numbers, limitations, diagram, screenshots, CI green, threat model note
 
 ## Evaluation (cross-cutting)
 Labeled sets in `eval/` with a dev/test split fixed before tuning. Report precision, recall, F1, false positives, set sizes and known bypasses. See the approved plan for details.
